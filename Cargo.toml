@@ -2,6 +2,15 @@
 name = "copy-metadata"
 version = "0.1.0"
 edition = "2021"
+description = "Copy metadata from one file to another"
+authors = ["Absolutex <lxl66566@gmail.com>"]
+license = "MIT"
+repository = "https://github.com/lxl66566/copy-metadata"
+homepage = "https://github.com/lxl66566/copy-metadata"
+readme = "README.md"
+keywords = ["copy", "metadata", "copy-metadata"]
+categories = ["filesystem"]
+rust-version = "1.60"
 
 [dependencies]
 filetime = "0.2.25"

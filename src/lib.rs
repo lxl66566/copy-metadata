@@ -1,3 +1,5 @@
+#![warn(clippy::cargo)]
+
 #[cfg(unix)]
 use std::os::unix::fs::{chown, MetadataExt as _, PermissionsExt as _};
 use std::{io, path::Path};
@@ -30,7 +32,7 @@ fn copy_permission_inner(
 fn copy_permission_inner(
     to: &Path,
     from_meta: &std::fs::Metadata,
-    to_meta: &std::fs::Metadata,
+    _to_meta: &std::fs::Metadata,
 ) -> io::Result<()> {
     let permissions = from_meta.permissions();
     std::fs::set_permissions(to, permissions)?;
@@ -49,11 +51,19 @@ pub fn copy_metadata(from: impl AsRef<Path>, to: impl AsRef<Path>) -> io::Result
     let from_meta = std::fs::metadata(from)?;
     let to_meta = std::fs::metadata(to)?;
 
+    // try to copy time first, because it might be refused if permission changes to
+    // read-only.
+    let res = copy_time_inner(to, &from_meta);
     copy_permission_inner(to, &from_meta, &to_meta)?;
-    copy_time_inner(to, &from_meta)?;
+    if let Err(err) = res {
+        if err.kind() == io::ErrorKind::PermissionDenied {
+            copy_time_inner(to, &from_meta)?;
+        }
+    }
     Ok(())
 }
 
+/// Copy permission from one file to another.
 pub fn copy_permission(from: impl AsRef<Path>, to: impl AsRef<Path>) -> io::Result<()> {
     let (from, to) = (from.as_ref(), to.as_ref());
     let from_meta = std::fs::metadata(from)?;
@@ -61,6 +71,9 @@ pub fn copy_permission(from: impl AsRef<Path>, to: impl AsRef<Path>) -> io::Resu
     copy_permission_inner(to, &from_meta, &to_meta)
 }
 
+/// Copy time stamp from one file to another.
+///
+/// Including last_access_time (atime) and last_modification_time (mtime).
 pub fn copy_time(from: impl AsRef<Path>, to: impl AsRef<Path>) -> io::Result<()> {
     let (from, to) = (from.as_ref(), to.as_ref());
     let from_meta = std::fs::metadata(from)?;
