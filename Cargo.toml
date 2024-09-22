@@ -1,0 +1,15 @@
+[package]
+name = "copy-metadata"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+filetime = "0.2.25"
+
+[target.'cfg(unix)'.dependencies]
+
+[target.'cfg(windows)'.dependencies]
+
+[dev-dependencies]
+tap = "1.0.1"
+tempfile = "3.12.0"
