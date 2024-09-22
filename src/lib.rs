@@ -58,6 +58,8 @@ pub fn copy_metadata(from: impl AsRef<Path>, to: impl AsRef<Path>) -> io::Result
     if let Err(err) = res {
         if err.kind() == io::ErrorKind::PermissionDenied {
             copy_time_inner(to, &from_meta)?;
+        } else {
+            return Err(err);
         }
     }
     Ok(())
