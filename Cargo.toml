@@ -21,4 +21,4 @@ filetime = "0.2.25"
 
 [dev-dependencies]
 tap = "1.0.1"
-tempfile = "3.12.0"
+tempfile = "3.14.0"
