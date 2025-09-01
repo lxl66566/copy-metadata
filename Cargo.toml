@@ -13,7 +13,7 @@ categories = ["filesystem"]
 rust-version = "1.60"
 
 [dependencies]
-filetime = "0.2.25"
+filetime = "0.2.26"
 
 [target.'cfg(unix)'.dependencies]
 
