@@ -1,6 +1,6 @@
 [package]
 name = "copy-metadata"
-version = "0.1.0"
+version = "0.2.0"
 edition = "2021"
 description = "Copy metadata from one file to another"
 authors = ["Absolutex <lxl66566@gmail.com>"]
@@ -21,4 +21,4 @@ filetime = "0.2.27"
 
 [dev-dependencies]
 tap = "1.0.1"
-tempfile = "3.26.0"
+tempfile = "3.27.0"
