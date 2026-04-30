@@ -20,3 +20,10 @@ fn copy_time(from: impl AsRef<Path>, to: impl AsRef<Path>) -> io::Result<()>;
 fn copy_metadata(from: impl AsRef<Path>, to: impl AsRef<Path>) -> io::Result<()>;
 // copy_metadata = copy_permission + copy_time
 ```
+
+or if you don't need to copy timestamps, you can disable the `copy-time` feature:
+
+```toml
+[dependencies]
+copy-metadata = { version = "0.3", default-features = false }
+```

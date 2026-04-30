@@ -3,15 +3,18 @@ use std::os::unix::fs::{MetadataExt, PermissionsExt};
 use std::{fs, thread::sleep, time::Duration};
 
 use copy_metadata::copy_metadata;
+#[cfg(feature = "copy-time")]
 use filetime::{set_file_times, FileTime};
 use tap::Tap;
 
 #[cfg(unix)]
+#[cfg(feature = "copy-time")]
 fn time_tuple(meta: &std::fs::Metadata) -> [i64; 2] {
     [meta.atime(), meta.mtime()]
 }
 
 #[cfg(windows)]
+#[cfg(feature = "copy-time")]
 fn time_tuple(meta: &std::fs::Metadata) -> [std::time::SystemTime; 2] {
     [meta.accessed().unwrap(), meta.modified().unwrap()]
 }
@@ -44,9 +47,12 @@ fn test_copy_metadata() {
             println!("{:o}", perm_to_num(&to_meta.permissions()));
             assert_eq!(to_meta.mode(), from_meta.mode());
 
-            let from_time = time_tuple(&from_meta);
-            let to_time = time_tuple(&to_meta);
-            assert_eq!(from_time, to_time);
+            #[cfg(feature = "copy-time")]
+            {
+                let from_time = time_tuple(&from_meta);
+                let to_time = time_tuple(&to_meta);
+                assert_eq!(from_time, to_time);
+            }
         });
 }
 
@@ -79,9 +85,12 @@ fn test_copy_metadata() {
                 from_meta.permissions().readonly()
             );
 
-            let from_time = time_tuple(&from_meta);
-            let to_time = time_tuple(&to_meta);
-            assert_eq!(from_time, to_time);
+            #[cfg(feature = "copy-time")]
+            {
+                let from_time = time_tuple(&from_meta);
+                let to_time = time_tuple(&to_meta);
+                assert_eq!(from_time, to_time);
+            }
         });
 }
 
@@ -94,8 +103,11 @@ fn test_copy_metadata_while_file_held() {
     fs::write(&src_path, "source content").unwrap();
     fs::write(&dst_path, "target content").unwrap();
 
+    #[cfg(feature = "copy-time")]
     let expected_atime = FileTime::from_unix_time(1500000000, 0);
+    #[cfg(feature = "copy-time")]
     let expected_mtime = FileTime::from_unix_time(1600000000, 0);
+    #[cfg(feature = "copy-time")]
     set_file_times(&src_path, expected_atime, expected_mtime).unwrap();
 
     let mut src_perms = fs::metadata(&src_path).unwrap().permissions();
@@ -119,18 +131,21 @@ fn test_copy_metadata_while_file_held() {
     copy_metadata(&src_path, &dst_path).expect("copy_metadata failed while file fd was held!");
     let dst_meta = fs::metadata(&dst_path).unwrap();
 
-    let dst_atime = FileTime::from_last_access_time(&dst_meta);
-    let dst_mtime = FileTime::from_last_modification_time(&dst_meta);
-    assert_eq!(
-        dst_atime.unix_seconds(),
-        expected_atime.unix_seconds(),
-        "Access time mismatch"
-    );
-    assert_eq!(
-        dst_mtime.unix_seconds(),
-        expected_mtime.unix_seconds(),
-        "Modification time mismatch"
-    );
+    #[cfg(feature = "copy-time")]
+    {
+        let dst_atime = FileTime::from_last_access_time(&dst_meta);
+        let dst_mtime = FileTime::from_last_modification_time(&dst_meta);
+        assert_eq!(
+            dst_atime.unix_seconds(),
+            expected_atime.unix_seconds(),
+            "Access time mismatch"
+        );
+        assert_eq!(
+            dst_mtime.unix_seconds(),
+            expected_mtime.unix_seconds(),
+            "Modification time mismatch"
+        );
+    }
 
     #[cfg(unix)]
     {

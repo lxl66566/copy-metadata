@@ -10,10 +10,10 @@ name         = "copy-metadata"
 readme       = "README.md"
 repository   = "https://github.com/lxl66566/copy-metadata"
 rust-version = "1.60"
-version      = "0.2.0"
+version      = "0.3.0"
 
 [dependencies]
-filetime = "0.2.27"
+filetime = { version = "0.2.27", optional = true }
 
 [target.'cfg(unix)'.dependencies]
 libc = "0.2"
@@ -23,3 +23,7 @@ libc = "0.2"
 [dev-dependencies]
 tap      = "1.0.1"
 tempfile = "3.27.0"
+
+[features]
+copy-time = ["filetime"]
+default   = ["copy-time"]

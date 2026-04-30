@@ -6,6 +6,7 @@ use std::os::unix::fs::PermissionsExt as _;
 use std::os::unix::io::AsRawFd;
 use std::{fs::File, io, path::Path};
 
+#[cfg(feature = "copy-time")]
 use filetime::{set_file_handle_times, FileTime};
 
 const FILE_FLAG_BACKUP_SEMANTICS: u32 = 0x2000000;
@@ -148,11 +149,14 @@ pub fn copy_metadata(from: impl AsRef<Path>, to: impl AsRef<Path>) -> io::Result
     let to_file = open_file_for_metadata(to.as_ref(), false)?;
     let to_meta = to_file.metadata()?;
 
-    let atime = FileTime::from_last_access_time(&from_meta);
-    let mtime = FileTime::from_last_modification_time(&from_meta);
+    #[cfg(feature = "copy-time")]
+    {
+        let atime = FileTime::from_last_access_time(&from_meta);
+        let mtime = FileTime::from_last_modification_time(&from_meta);
 
-    // 3. Set timestamps using the handle (calls futimens or SetFileTime internally)
-    set_file_handle_times(&to_file, Some(atime), Some(mtime))?;
+        // 3. Set timestamps using the handle (calls futimens or SetFileTime internally)
+        set_file_handle_times(&to_file, Some(atime), Some(mtime))?;
+    }
 
     // 4. Set permissions using the handle
     copy_permission_impl(&to_file, &from_meta, &to_meta)
@@ -170,6 +174,7 @@ pub fn copy_permission(from: impl AsRef<Path>, to: impl AsRef<Path>) -> io::Resu
 }
 
 /// Copy only timestamps
+#[cfg(feature = "copy-time")]
 pub fn copy_time(from: impl AsRef<Path>, to: impl AsRef<Path>) -> io::Result<()> {
     let from_file = open_file_for_metadata(from.as_ref(), true)?;
     let from_meta = from_file.metadata()?;
