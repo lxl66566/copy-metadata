@@ -1,24 +1,25 @@
 [package]
-name = "copy-metadata"
-version = "0.2.0"
-edition = "2021"
-description = "Copy metadata from one file to another"
-authors = ["Absolutex <lxl66566@gmail.com>"]
-license = "MIT"
-repository = "https://github.com/lxl66566/copy-metadata"
-homepage = "https://github.com/lxl66566/copy-metadata"
-readme = "README.md"
-keywords = ["copy", "metadata", "copy-metadata"]
-categories = ["filesystem"]
+authors      = ["Absolutex <lxl66566@gmail.com>"]
+categories   = ["filesystem"]
+description  = "Copy metadata from one file to another"
+edition      = "2021"
+homepage     = "https://github.com/lxl66566/copy-metadata"
+keywords     = ["copy", "metadata", "copy-metadata"]
+license      = "MIT"
+name         = "copy-metadata"
+readme       = "README.md"
+repository   = "https://github.com/lxl66566/copy-metadata"
 rust-version = "1.60"
+version      = "0.2.0"
 
 [dependencies]
 filetime = "0.2.27"
 
 [target.'cfg(unix)'.dependencies]
+libc = "0.2"
 
 [target.'cfg(windows)'.dependencies]
 
 [dev-dependencies]
-tap = "1.0.1"
+tap      = "1.0.1"
 tempfile = "3.27.0"
