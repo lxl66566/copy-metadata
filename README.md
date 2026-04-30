@@ -2,6 +2,10 @@
 
 cross-platform lib to copy metadata from one file to another.
 
+- TOCTOU-safe – all metadata changes are applied through open file handles.
+- No symlink following – only regular files and directories are supported.
+- Cross-platform – uses `fchmod`/`fchown`/`futimens` on Unix and `SetFileInformationByHandle`, `SetFileTime` on Windows.
+
 ## Usage
 
 ```sh

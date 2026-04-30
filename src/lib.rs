@@ -9,6 +9,7 @@ use std::{fs::File, io, path::Path};
 use filetime::{set_file_handle_times, FileTime};
 
 const FILE_FLAG_BACKUP_SEMANTICS: u32 = 0x2000000;
+const FILE_FLAG_OPEN_REPARSE_POINT: u32 = 0x00200000;
 
 /// Safely open a file handle, specifically for reading or modifying Metadata
 #[inline]
@@ -17,7 +18,7 @@ fn open_file_for_metadata(path: &Path, is_source: bool) -> io::Result<File> {
 
     #[cfg(windows)]
     {
-        use std::os::windows::fs::OpenOptionsExt;
+        use std::os::windows::fs::{MetadataExt, OpenOptionsExt};
         opts.read(true);
         // 0x0100 = FILE_WRITE_ATTRIBUTES (needed if this is the target file)
         // 0x0080 = FILE_READ_ATTRIBUTES (needed if this is the source file)
@@ -25,26 +26,57 @@ fn open_file_for_metadata(path: &Path, is_source: bool) -> io::Result<File> {
         opts.access_mode(access)
             .share_mode(0x7) // FILE_SHARE_READ | WRITE | DELETE allows opening while another process is using the
             // file
-            .custom_flags(FILE_FLAG_BACKUP_SEMANTICS); // Allows opening directories
-        opts.open(path)
+            .custom_flags(FILE_FLAG_BACKUP_SEMANTICS | FILE_FLAG_OPEN_REPARSE_POINT); // Allows opening directories and reparse points
+
+        let f = opts.open(path)?;
+
+        // Check if it's a reparse point (e.g., symlink or directory junction) and
+        // reject it to prevent TOCTOU
+        if f.metadata()?.file_attributes() & 0x400 != 0 {
+            // 0x400 = FILE_ATTRIBUTE_REPARSE_POINT
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "Symlinks not supported",
+            ));
+        }
+
+        Ok(f)
     }
 
     #[cfg(unix)]
     {
         use std::os::unix::fs::OpenOptionsExt;
-        // O_NONBLOCK prevents hanging on FIFOs/special files
-        opts.custom_flags(libc::O_NONBLOCK);
+
+        // O_NONBLOCK prevents hanging on FIFOs/special files.
+        // O_NOFOLLOW prevents TOCTOU symlink attacks.
+        // Note: O_RDONLY works fine for both files and directories, so we don't need
+        // O_DIRECTORY or any prior metadata checks.
+        let flags = libc::O_NONBLOCK | libc::O_NOFOLLOW;
+        opts.custom_flags(flags);
 
         // Try opening with read-only access
         opts.read(true);
         match opts.open(path) {
             Ok(f) => Ok(f),
+            Err(e) if e.raw_os_error() == Some(libc::ELOOP) => Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "Symlinks not supported",
+            )),
             Err(e) if e.kind() == io::ErrorKind::PermissionDenied && !is_source => {
                 // If it's the target file and we have no read permission (e.g. --w-------),
-                // try opening write-only to obtain an fd
+                // try opening write-only to obtain an fd.
+                // Note: If the path is a directory, O_WRONLY will naturally fail with EISDIR,
+                // which is acceptable since we cannot get a handle for a write-only directory.
                 let mut write_opts = std::fs::OpenOptions::new();
-                write_opts.write(true).custom_flags(libc::O_NONBLOCK);
-                write_opts.open(path)
+                write_opts.write(true).custom_flags(flags);
+                match write_opts.open(path) {
+                    Ok(f) => Ok(f),
+                    Err(we) if we.raw_os_error() == Some(libc::ELOOP) => Err(io::Error::new(
+                        io::ErrorKind::InvalidInput,
+                        "Symlinks not supported",
+                    )),
+                    Err(we) => Err(we),
+                }
             }
             Err(e) => Err(e),
         }
@@ -74,9 +106,14 @@ fn copy_permission_impl(
         let res = unsafe { libc::fchown(fd, from_uid, from_gid) };
 
         if res != 0 {
-            // If fchown fails (usually due to insufficient permissions), use fallback
-            // logic: Copy the 'other' permission bits to the group permission
-            // bits
+            // Security fallback: If fchown fails (usually because the user is not root
+            // and the source group differs from the user's default group), the target
+            // file will be owned by the user's default group.
+            // To prevent privilege escalation, we must not grant the original group
+            // permissions to the new group, because the new group might contain users
+            // who only had 'other' access to the source file.
+            // Therefore, we downgrade the group permissions to match the 'other'
+            // permissions.
             let new_perms = (perms.mode() & 0o0707) | ((perms.mode() & 0o07) << 3);
             perms.set_mode(new_perms);
         }
