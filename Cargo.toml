@@ -13,7 +13,7 @@ rust-version = "1.60"
 version      = "0.3.0"
 
 [dependencies]
-filetime = { version = "0.2.27", optional = true }
+filetime = { version = "0.2.29", optional = true }
 
 [target.'cfg(unix)'.dependencies]
 libc = "0.2"
